@@ -1,0 +1,159 @@
+Proyect: E-commerce WEbsite With Django and Vue
+https://www.youtube.com/watch?v=Yg5zkd9nm6w
+
+- Todo list
+
+- Install and Setup (Django) ================== DONE ======================
+    ## virtualenv enviroment_3_8_2  // ## py -m venv enviroment_3_8_2
+    ## source enviroment_3_8_2/Scripts/activate
+    ## pip install virtualenv
+    ## pip install django
+    ## pip install django-rest-framework (Rest Framework - Create API in backend)
+    ## pip install django-cors-headers   (Security)
+    ## pip install djoser                (Authentication, Users, etc)
+    ## pip install pillow                (Resize Images and similar)
+    ## pip install stripe                (Payments)
+    ## django-admin startproject djackets_django
+        -->> djackets_django/djackets_django/settings.py
+
+            INSTALLED_APPS = [
+                'django.contrib.admin',
+                'django.contrib.auth',
+                'django.contrib.contenttypes',
+                'django.contrib.sessions',
+                'django.contrib.messages',
+                'django.contrib.staticfiles',
+
+                'rest_framework',
+                'rest_framework.authtoken',
+                'corsheaders',
+                'djoser',
+            ]
+
+            CORS_ALLOWED_ORIGINS = [
+                "http://localhost:8000"
+            ]
+
+            MIDDLEWARE = [
+                'django.middleware.security.SecurityMiddleware',
+                'django.contrib.sessions.middleware.SessionMiddleware',
+
+                'corsheaders.middleware.CorsMiddleware',
+
+                'django.middleware.common.CommonMiddleware',
+                'django.middleware.csrf.CsrfViewMiddleware',
+                'django.contrib.auth.middleware.AuthenticationMiddleware',
+                'django.contrib.messages.middleware.MessageMiddleware',
+                'django.middleware.clickjacking.XFrameOptionsMiddleware',
+            ]
+        
+        -->> djackets_django/djackets_django/urls.py
+            - Remove comment
+            -
+                from django.contrib import admin
+                from django.urls import path, include
+
+                urlpatterns = [
+                    path('admin/', admin.site.urls),
+                    
+                    path('api/v1/', include('djoser.urls')),
+                    path('api/v1/', include('djoser.urls.authtoken')),
+                ]
+        
+    create database
+
+        ## python manage.py makemigrations
+        ## python manage.py migrate
+
+    test database
+
+        ## python manage.py createsuperuser
+            - username: admin
+            - email: admin@djackets.com
+            - password: SuperCat332
+        
+        ## python manage.py runserver
+
+        Got to http://127.0.0.1:8000/admin
+        Login
+        Ctrl+C to break
+
+        ## deactivate
+        ## cd ./Djackets
+
+
+
+- Insall and Setup (Vue) ================== DONE ======================
+    ## npm install -g @vue/cli
+    ## vue create djackets_vue
+        - Manually select features (Babel - Router - Vuex - CSS)
+        - 3.x
+        - history mode for router - Yes
+        - dart-sass
+        - place in dedicated config files
+        - Save preset - No
+    
+    ## cd djackets_vue
+    ## npm install axios
+    ## npm install bulma
+
+    test
+        ## npm run serve
+        Go to http://localhost:8080/
+
+
+
+
+
+- Include FontAwesome ================== DONE ======================
+    --> djackets_vue/public/index.html
+        <link rel="stylesheet" href="https://cdn.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css">
+
+- Setup Base Template
+- Create Django App and Models for products
+- Create serializer and views for the products
+- Create simple front page (latest products)
+
+- View a product
+    - Create Viewset in Django
+    - Create Vue page for showing product
+    - Add link to detail page
+- Settle Opp Vuex / State
+
+- Make it possible to add to Cart
+    - Add functionality to Vuex
+    - Initialize store in app.vue
+    - Add button to product page
+    - Show a toast message
+
+- Make it possible to sign up
+- Make it possible to log in
+- Create a simple my account system
+
+- Implement a loading bar
+- Set document title (All pages)
+
+- Make it possible to view a category
+    - Convert the product to a component
+
+- Add search functionality
+
+- View Cart
+    - A cart item should be a component
+- Change contents of cart
+    - Increment / Decrement content
+    - Remove from cart
+- Proceed to Checkout (Authentification)
+- Create a simple succes page
+
+- Show my orders on the my account page
+    - An order should be a component
+
+- Deploy Django
+    - Create a server and access it
+    - Install software
+    - Create Postgres DB
+    - Create Users and Virtual Enviroment
+    - Install packages and get project files
+    - Create separate settingsfile for production
+    - Set up Gunicorn
