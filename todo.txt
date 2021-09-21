@@ -33,6 +33,19 @@ https://www.youtube.com/watch?v=Yg5zkd9nm6w
             CORS_ALLOWED_ORIGINS = [
                 "http://localhost:8000"
             ]
+            ================== ARREGLIN ======================
+            CORS_ALLOW_ALL_ORIGINS = True
+            CORS_ALLOW_CREDENTIALS = True
+
+            """ CORS_ALLOWED_ORIGINS = [
+                "http://localhost:8000"
+            ] """
+
+            CORS_ALLOWED_ORIGIN_REGEXES = [
+                'http://localhost:8000',
+            ]
+            ==================================================
+
 
             MIDDLEWARE = [
                 'django.middleware.security.SecurityMiddleware',
@@ -109,47 +122,494 @@ https://www.youtube.com/watch?v=Yg5zkd9nm6w
     --> djackets_vue/public/index.html
         <link rel="stylesheet" href="https://cdn.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css">
 
-- Setup Base Template
-- Create Django App and Models for products
-- Create serializer and views for the products
-- Create simple front page (latest products)
+- Setup Base Template ================= DONE ===========================
+    --> djackets_vue/src/App.vue
+            <style>
+            "@import '../node_modules/bulma';"
+            </style>
+            <template> 
+                <div id="wrapper">
+                    <nav class="navbar is-dark">
 
-- View a product
+                    <div class="navbar-brand">
+                        <router-link to="/" class="navbar-item">
+                        <strong>Djackets</strong>
+                        </router-link>
+
+                        <a class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navbar-menu">
+                        <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
+                        </a>
+                    </div>
+
+                    <div class="navbar-menu" id="navbar-menu">
+                        <div class="navbar-end">
+
+                            <router-link to="/summer" class="navbar-item">Summer</router-link>
+                            <router-link to="/winter" class="navbar-item">Winter</router-link>
+
+                        <div class="navbar-item">
+                        <div class="buttons">
+                            <router-link class="button is-light">Log in</router-link>
+
+                            <router-link class="button is-success">
+                                <span class="icon"><i class="fas fa-shopping-cart"></i></span>
+                                <span>Cart</span>
+                            </router-link>
+                        </div>
+                        </div>
+
+                        </div>
+                    </div>
+
+                    </nav>
+
+                    <section class="section">
+                        <router-view/>
+                    </section>
+                    
+                    <footer class="footer">
+                        <p class="has-test-centered">Copyright (c) 2021</p>
+                    </footer>
+                </div>
+            </template>
+
+- Create Django App and Models for products ================ DONE ===================
+    --> Djackets/djackets_django
+    ## source ../env/Scripts/activate
+    ## python manage.py startapp product
+
+    --> Djackets/djackets_django/product/models.py
+        from django.db import models
+
+        class Category(models.Model):
+            name = models.CharField(max_length=255)
+            slug = models.SlugField()
+
+            class Meta:
+                ordering = ('name',)
+
+            def __str__(self):
+                return self.name
+
+            def get_absolute_url(self):
+                return f'/{self.slug}/'
+    
+    --> Djackets/djackets_django/djackets_django/settings.py
+        INSTALLED_APPS = [
+            ...
+
+            'product'
+        ]
+
+        ...
+
+        STATIC_URL = '/static/'
+        MEDIA_URL = '/media/'
+        MEDIA_ROOT = BASE_DIR / 'media/'
+    
+    --> Djackets/djackets_django/djackets_django/urls.py
+        from django.conf import settings
+        from django.conf.urls.static import static
+        ...
+
+        urlpatterns = [
+            ...
+        ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    
+    ## python manage.py makemigrations
+    ## python manage.py migrate
+
+    --> Djackets/djackets_django/product/models.py
+        from io import BytesIO
+        from PIL import Image
+
+        from django.core.files import File
+        
+        ...
+
+        class Product(models.Model):
+        category = models.ForeignKey(Category, related_name='products', on_delete=models.CASCADE)
+        name = models.CharField(max_length=255)
+        slug = models.SlugField()
+        description = models.TextField(blank=True, null=True)
+        price = models.DecimalField(max_digits=6, decimal_places=2)
+        image = models.ImageField(upload_to='uploads/', blank=True, null=True)
+        thumbnail = models.ImageField(upload_to='uploads/', blank=True, null=True)
+        date_added = models.DateTimeField(auto_now_add=True)
+
+        class Meta:
+            ordering = ('-date_added',)
+
+        def __str__(self):
+            return self.name
+
+        def get_absolute_url(self):
+            return f'/{self.category.slug}/{self.slug}/'
+
+        def get_image(self):
+            if self.image:
+                return 'http://127.0.0.1:8000' + self.image.url
+            return ''
+        
+        def get_thumbnail(self):
+            if self.thumbnail:
+                return 'http://127.0.0.1:8000' + self.thumbnail.url
+            else:
+                if self.image:
+                    self.thumbnail = self.make_thumbnail(self.image)
+                    self.save()
+
+                    return 'http://127.0.0.1:8000' + self.thumbnail.url
+                else:
+                    return ''
+        
+        def make_thumbnail(self, image, size=(300, 200)):
+            img = Image.open(image)
+            img.convert('RGB')
+            img.thumbnail(size)
+
+            thumb_io = BytesIO()
+            img.save(thumb_io, 'JPEG', quality=85)
+
+            thumbnail = File(thumb_io, name=image.name) 
+
+            return thumbnail   
+
+    ## python manage.py makemigrations
+    ## python manage.py migrate
+    ## python manage.py runserver
+    
+
+- Create serializer and views for the products ==================== DONE ===========================
+    --> Djackets/djackets_django/product/serializers.py (New File)
+            from rest_framework import serializers
+
+            from .models import Category, Product
+
+            class ProductSerializer(serializers.ModelSerializer):
+                class Meta:
+                    model = Product
+                    fields = (
+                        "id", 
+                        "name", 
+                        "get_absolute_url", 
+                        "description", 
+                        "price", 
+                        "get_image", 
+                        "get_thumbnail"
+                    )
+                    
+
+    --> Djackets/djackets_django/product/views.py
+        from django.shortcuts import render
+
+        from rest_framework.views import APIView
+        from rest_framework.response import Response
+
+        from .models import Product
+        from .serializers import ProductSerializer
+
+        class LatestProductsList(APIView):
+            def get(self, request, format=None):
+                products = Product.objects.all()[0:4]
+                serializer = ProductSerializer(products, many=True)
+                return Response(serializer.data)
+
+    --> Djackets/djackets_django/product/urls.py (New File)
+        from django.urls import path, include
+
+        from product import views
+
+        urlpatterns = [
+            path('latest-products', views.LatestProductsList.as_view()),
+        ]
+
+    --> Djackets/djackets_django/djackets_django/urls.py
+        ...
+        urlpaterns = [
+            ...
+            path('api/v1/', include('product.urls')),
+        ]
+    
+    Visit http://127.0.0.1:8000/api/v1/
+    Visit http://127.0.0.1:8000/api/v1/latest-products
+
+    --> Djackets/djackets_django/product/admin.py
+        from django.contrib import admin
+
+        from .models import Category, Product
+
+        admin.site.register(Category)
+        admin.site.register(Product)
+    
+    Visit http://127.0.0.1:8000/admin/
+        Add Category -> Name: Summer, Slug: summer
+        Add Another -> Name: Summer, Slug: summer -> Save
+
+        Add Product -> 
+            Category: Summer
+            Name: Brown Leather
+            Slug: brown-Leather
+            Description: The desc
+            Price: 199
+            Image: Djackets/summer1.jpg (internet downloaded)
+        -> Save
+
+        Add Product -> 
+            Category: Winter
+            Name: Warm Jacket
+            Slug: warm-jacket
+            Description: The desc for this product
+            Price: 299
+            Image: Djackets/winter1.jpg (internet downloaded)
+        -> Save
+
+    Visit http://127.0.0.1:8000/api/v1/latest-products
+
+
+
+
+
+- Create simple front page (latest products) ==================== DONE (?) ===========================
+   
+    --> djackets_vue/src/views/Home.vue
+
+<template>
+  <div class="home">
+    <section class="hero is-medium is-dark mb-6">
+      <div class="hero-body has-text-centered">
+        <p class="title mb-6">
+          Welcome to Djacket
+        </p>
+        <p class="subtitle">
+          The best jacket store online
+        </p>
+      </div>
+    </section>
+
+    <div class="columns is-multiline">
+      <div class="column is-12">
+        <h2 class="is-size-2 has-text-centered">Latest products</h2>
+      </div>
+      <div class="column is-3" v-for="product in latestProducts" v-bind:key="product.id">
+        <div class="box">
+          <figure class="image mb-4">
+            <img :src="product.get_thumbnail">
+          </figure>
+
+          <h3 class="is-size-4">{{ product.name }}</h3>
+          <p class="is-size-6 has-text-grey">${{ product.price }}</p>
+
+          View Details
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+</template>
+
+<script>
+import axios from 'axios'
+
+export default {
+  name: 'Home',
+  data() {
+    return {
+      latestProducts: []
+    }
+  },
+  components: {
+  },
+  mounted() {
+    this.getLatestProducts()
+  },
+  methods: {
+    getLatestProducts() {
+      axios
+        .get('/api/v1/latest-products')
+        .then(response => {
+          this.latestProducts = response.data
+        })
+        .catch( error => {
+          console.log(error)
+        })
+    }
+  }
+}
+</script>
+
+<style scoped>
+  .image {
+    margin-top: -1.25rem;
+    margin-left: -1.25rem;
+    margin-right: -1.25rem;
+  }
+</style>
+
+-- > django_vue/src/main.js
+
+    import { createApp } from 'vue'
+    import App from './App.vue'
+    import router from './router'
+    import store from './store'
+    import axios from 'axios'
+
+    axios.defaults.baseURL = 'http://127.0.0.1:8000'
+
+    require('@/assets/main.scss');
+
+    createApp(App).use(store).use(router, axios).mount('#app')
+
+- View a product ==================== DONE ===========================
     - Create Viewset in Django
-    - Create Vue page for showing product
-    - Add link to detail page
-- Settle Opp Vuex / State
 
-- Make it possible to add to Cart
+        --> djackets_django/product/views.py
+
+            from django.http import Http404
+            ...
+            class ProductDetail(APIView):
+            def get_object(self, category_slug, product_slug):
+                try:
+                    return Product.objects.filter(category__slug=category_slug).get(slug=product_slug)
+                except Product.DoesNotExist:
+                    raise Http404
+            
+            def get(self, request, category_slug, product_slug, format=None):
+                product = self.get_object(category_slug, product_slug)
+                serializer = ProductSerializer(product)
+                return Response(serializer.data)
+        
+        --> djackets_django/product/urls.py
+
+            ...
+            urlpatterns = [
+                path('latest-products', views.LatestProductsList.as_view()),
+                path('products/<slug:category_slug>/<slug:product_slug>/', views.ProductDetail.as_view()),
+            ]
+
+    - Create Vue page for showing product
+        --> djackets_vue/src/views/Product.vue (NEW FILE)
+            <template>
+                <div class="page-product">
+                    <div class="column is-multiline">
+                        <div class="column is-9">
+                            <figure class="image mb-6">
+                                <img :src="product.get_image">
+                                </figure>
+                            <h1 class="title">{{ product.name }}</h1>
+                            <p>{{ product.description }}</p>
+                        </div>
+                        <div class="column is-3">
+                            <h2 class="subtitle">Information</h2>
+                            <p><strong>Price: </strong>{{ product.price }}</p>
+                            <div class="field has-addons mt-6">
+                                    <div class="control">
+                                    <input type="number" class="input" min="1" v-model="quantity">
+                                    </div>
+                                    <div class="control">
+                                        <a class="button is-dark">Add to cart</a>
+                                    </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </template>
+
+                <script>
+                import axios from 'axios'
+
+                export default {
+                    name: 'Product',
+                    data() {
+                        return {
+                            product: {},
+                            quantity: 1
+                        }
+                    },
+                    mounted() {
+                        this.getProduct()
+                    },
+                    methods: {
+                        getProduct() {
+                            const category_slug = this.$route.params.category_slug
+                            const product_slug = this.$route.params.product_slug
+
+                            axios
+                            .get(`/api/v1/products/${category_slug}/${product_slug}`)
+                            .then(response => {
+                                this.product = response.data
+                            })
+                            .catch(error => {
+                                console.log(error)
+                            })
+                        }
+                    }
+                }
+                </script>
+
+                <style>
+
+                </style>
+            
+
+        --> djackets_vue/src/router/index.js
+            ...
+            import Product from '../views/Product.vue'
+            ...
+            const routes = [
+                ...
+                {
+                    path: '/:category_slug/:product_slug/',
+                    name: 'Product',
+                    component: Product
+                }
+            ]
+
+    - Add link to detail page
+
+        --> djackets_vue/src/views/Home.vue
+
+            <template>
+                ...
+                View Details  -> <router-link :to="product.get_absolute_url" class="button-is-dark mt-4">View Details</router-link>
+                ...
+            </template>
+
+- Settle Opp Vuex / State ==================== PENDING ===========================
+
+- Make it possible to add to Cart ==================== PENDING ===========================
     - Add functionality to Vuex
     - Initialize store in app.vue
     - Add button to product page
     - Show a toast message
 
-- Make it possible to sign up
-- Make it possible to log in
-- Create a simple my account system
+- Make it possible to sign up ==================== PENDING ===========================
+- Make it possible to log in ==================== PENDING ===========================
+- Create a simple my account system ==================== PENDING ===========================
 
-- Implement a loading bar
-- Set document title (All pages)
+- Implement a loading bar ==================== PENDING ===========================
+- Set document title (All pages) ==================== PENDING ===========================
 
-- Make it possible to view a category
+- Make it possible to view a category ==================== PENDING ===========================
     - Convert the product to a component
 
-- Add search functionality
+- Add search functionality ==================== PENDING ===========================
 
-- View Cart
+- View Cart ==================== PENDING ===========================
     - A cart item should be a component
-- Change contents of cart
+- Change contents of cart ==================== PENDING ===========================
     - Increment / Decrement content
     - Remove from cart
-- Proceed to Checkout (Authentification)
-- Create a simple succes page
+- Proceed to Checkout (Authentification) ==================== PENDING ===========================
+- Create a simple succes page ==================== PENDING ===========================
 
-- Show my orders on the my account page
+- Show my orders on the my account page ==================== PENDING ===========================
     - An order should be a component
 
-- Deploy Django
+- Deploy Django ==================== PENDING ===========================
     - Create a server and access it
     - Install software
     - Create Postgres DB
