@@ -578,23 +578,483 @@ export default {
                 ...
             </template>
 
-- Settle Opp Vuex / State ==================== PENDING ===========================
+- Settle Opp Vuex / State ==================== DONE ===========================
+    ## cd djackets_django
+    ## source ../env/Scripts/activate
+    ## py manage.py runserver
 
-- Make it possible to add to Cart ==================== PENDING ===========================
+    ## cd djackets_vue
+    ## npm run serve
+
+    --> djackets_vue/src/store/index.js
+        ... 
+        state: {
+            cart: {
+                items: [],
+            },
+            isAuthenticated: false,
+            token: '',
+            isLoading: false
+        },
+        ...
+
+
+- Make it possible to add to Cart ==================== DONE ===========================
     - Add functionality to Vuex
+        --> djackets_vue/src/store/index.js
+            ... 
+            mutations: {
+                initializeStore(state) {
+                    if (localStorage.getItem('cart')){
+                        state.cart = JSON.parse(localStorage.getItem('cart'))
+                    } else {
+                        localStorage.setItem('cart', JSON.stringify(state.cart))
+                    }
+                },
+                addToCart(state, item) {
+                    const exists = state.cart.items.filter(i => i.product.id === item.product.id)
+
+                    if (exist.length) {
+                        exists[0].quantity = parseInt(exists[0].quantity) + parseInt(item.quantity)
+                    } else {
+                        state.cart.items.push(item)
+                    }
+
+                    localStorage.setItem('cart', JSON.stringify(state.cart))
+                }
+            },
+            ...
+
+
     - Initialize store in app.vue
+        --> djackets_vue/src/App.vue
+            <template>
+            ...
+                <span>Cart ({{ cartTotalLength }})</span>
+            ...
+            </template>
+            ...
+            <script>
+            export default {
+                data() {
+                    return {
+                        showMobileMenu: false,
+                        cart: {
+                            items: []
+                        }
+                    }
+                },
+                beforeCreate() {
+                    this.$store.commit('initializeStore')
+                },
+                mounted() {
+                    this.cart = this.$store.state.cart
+                },
+                computed: {
+                    cartTotalLength() {
+                        let totalLength = 0
+
+                    for (let i = 0; i < this.cart.items.length; i++) {
+                        totalLength += this.cart.items[i].quantity   
+                    }
+
+                    return totalLength
+                }
+            }
+            </script>
+            ...
+
     - Add button to product page
+        --> djackets_vue/src/views/Product.vue
+            <template>
+            ...
+                <a class="button is-dark" @click="addToCart">Add to cart</a>
+            ...
+            </template>
+            <script>
+            ...
+                methods: 
+                ...
+                addToCart() {
+                    if(isNaN(this.quantity) || this.quantity < 1){
+                        this.quantity = 1
+                    }
+
+                    const item = {
+                        product: this.product,
+                        quantity: this.quantity
+                    }
+
+                    this.$store.commit('addToCart', item)
+                }
+            ...
+            </script>
+
+
     - Show a toast message
+        --> /djackets_vue
+            Ctrl+C
+            ## npm install bulma-toast
+            ## npm run serve
+        
+        --> djackets_vue/src/views/Product.vue
+            <script>
+            ...
+            import { toast } from 'bulma-toast'    
+            ...
+            addToCart() {
+                ...
+                toast({
+                    message: 'The product was added to the cart',
+                    type: 'is-success',
+                    dismissible: true,
+                    pauseOnHover: true,
+                    duration: 2000,
+                    position: 'bottom-right'
+                })
+                ...
+            }
+            </script>
 
-- Make it possible to sign up ==================== PENDING ===========================
-- Make it possible to log in ==================== PENDING ===========================
-- Create a simple my account system ==================== PENDING ===========================
+- Implement a loading bar ==================== DONE ===========================
+    --> djackets_vue/src/store/index.js
+        ...
+        mutations: {
+            ...
+            setIsLoading(state, status) {
+                state.isLoading = status
+            }
+            ...
+        }
+    
+    --> djackets_vue/src/views/Product.vue
+        <script>
+        ...
+            async getProduct(){
+                this.$store.commit('setIsLoading', true)
 
-- Implement a loading bar ==================== PENDING ===========================
-- Set document title (All pages) ==================== PENDING ===========================
+                ...
+                await axios
+                ...
 
-- Make it possible to view a category ==================== PENDING ===========================
+                this.$store.commit('setIsLoading', false)
+            }
+        ...
+        </script>
+    
+    --> djackets_vue/src/App.vue
+        <template>
+        ...
+            <div class="is-loading-bar has-text-centered" :class="{ 'is-loading' : $store.state.isLoading }">
+                <div class="lds-dual-ring"></div>
+            </div>
+
+            <section class="section">
+        ...
+        </template>
+        ...
+        <style>
+        @import '../node_modules/bulma';
+
+        .lds-dual-ring {
+            display: inline-block;
+            width: 80px;
+            height: 80px;
+        }
+
+        .lds-dual-ring:after {
+            content: " ";
+            display: block;
+            width: 64px;
+            height: 64px;
+            margin: 8px;
+            border-radius: 50%;
+            border: 6px solid #ccc;
+            border-color: #ccc transparent #ccc transparent;
+            animation: lds-dual-ring 1.2s linear infinite;
+        }
+
+        @keyframes lds-dual-ring {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100%{
+                transform: rotate(360deg);
+            }
+        }
+
+        .is-loading-bar {
+            height: 0;
+            overflow: hidden;
+
+            -webkit-transition: all 0.3s;
+            transition: all 0.3s;
+
+            &.is-loading {
+                height: 80px;
+            }
+        }
+        </style>
+
+
+    --> djackets_vue/src/views/Home.vue
+        <script>
+        ...
+            async getLatestProduct(){
+                this.$store.commit('setIsLoading', true)
+
+                ...
+                await axios
+                ...
+
+                this.$store.commit('setIsLoading', false)
+            }
+        ...
+        </script>
+
+- Set document title (All pages) ==================== DONE ===========================
+
+    --> djackets_vue/src/views/Product.vue
+        ...
+        await axios
+            ...
+            .then(response => {
+                this.product = response.data
+
+                document.title = this.product.name + ' | Djackets'
+            })
+
+    --> djackets_vue/src/views/Home.vue
+        ...
+        mounted() {
+            this.getLatestProducts()
+
+            document.title = 'Home | Djackets'
+        },
+        ...
+
+
+- Make it possible to view a category ==================== DONE ===========================
     - Convert the product to a component
+
+    --> djackets_django/product/views.py
+        ...
+        from .models import Product, Category
+        from .serializers import ProductSerializer, CategorySerializer
+        ...
+        class CategoryDetail(APIView):
+            def get_object(self, category_slug):
+                try:
+                    return Category.objects.get(slug=category_slug)
+                except Product.DoesNotExist:
+                    raise Http404
+            
+            def get(self, request, category_slug, format=None):
+                category = self.get_object(category_slug)
+                serializer = CategorySerializer(category)
+                return Response(serializer.data)
+    
+    --> djackets_django/product/serializers.py
+        ...
+        class CategorySerializer(serializers.ModelSerializer):
+            products = ProductSerializer(many=True)
+
+            class Meta:
+                model = Category
+                fields = (
+                    "id",
+                    "name",
+                    "get_absolute_url",
+                    "products",
+                )
+
+    --> djackets_django/product/urls.py
+        ...
+        urlpatterns = [
+            ...
+            path('products/<slug:category_slug>', views.CategoryDetail.as_view())
+        ]
+    
+
+    --> djackets_vue/src/views/Category.vue (NEW FILE)
+        <template>
+            <div class="page-category">
+                <div class="columns is-mutliline">
+                    <div class="column is-12">
+                        <h2 class="is-size-12 has-text-centered">{{ category.name }}</h2>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <script>
+        import axios from 'axios'
+        import { toast } from 'bulma-toast'
+
+
+        export default {
+            name: 'Category',
+            data() {
+                return {
+                    category: {
+                        products: []
+                    }
+                }
+            },
+            mounted() {
+                this.getCategory()
+            },
+            methods: {
+                async getCategory() {
+                    const categorySlug = this.$route.params.category_slug
+
+                    this.$store.commit('setIsLoading', true)
+
+                    await axios
+                            .get(`/api/v1/products/${categorySlug}/`)
+                            .then(response => {
+                                this.category = response.data
+
+                                document.title = this.category.name + ' | Djackets'
+                            })
+                            .catch(error => {
+                                console.log(error)
+
+                                toast({
+                                    message: 'Something went wrong. Please try again.',
+                                    type: 'is-danger',
+                                    dismissible: true,
+                                    pauseOnHover: true,
+                                    duration: 2000,
+                                    position: 'bottom-right'
+                                })
+                            })
+
+                    this.$store.commit('setIsLoading', false)
+                }
+            }
+        }
+        </script>
+
+        <style>
+
+        </style>
+
+    --> djackets_vue/src/router/index.js
+        ...
+        import Category from '../views/Category.vue'
+        ...
+        ,
+        {
+            path: '/:category_slug',
+            name: 'Category',
+            component: Category
+        }
+    
+    --> djackets_vue/src/views/Category.vue
+        ...
+            <div class="column is-12">
+                <h2 class="is-size-2 has-text-centered">{{ category.name }}</h2>
+            </div>
+        </div>
+
+        <div class="columns is-mutliline">
+          <div class="column is-3" v-for="product in category.products" v-bind:key="product.id">
+               <div class="box">
+                  <figure class="image mb-4">
+                    <img :src="product.get_thumbnail">
+                  </figure>
+
+                  <h3 class="is-size-4">{{ product.name }}</h3>
+                  <p class="is-size-6 has-text-grey">${{ product.price }}</p>
+
+                  <router-link :to="product.get_absolute_url" class="button is-dark mt-4">View Details</router-link>
+               </div>
+          </div>
+        ...
+
+    --> djackets_vue/src/components/ProductBox.vue (NEW FILE)
+        <template>
+            <div class="column is-3">
+                <div class="box">
+                    <figure class="image mb-4">
+                        <img :src="product.get_thumbnail">
+                    </figure>
+
+                    <h3 class="is-size-4">{{ product.name }}</h3>
+                    <p class="is-size-6 has-text-grey">${{ product.price }}</p>
+
+                    <router-link :to="product.get_absolute_url" class="button is-dark mt-4">View Details</router-link>
+                </div>
+            </div>
+        </template>
+
+        <script>
+        export default {
+            name: 'ProductBox',
+            props: {
+                product: Object
+            }
+        }
+        </script>
+    
+        <style scoped>
+            .image {
+                margin-top: -1.25rem;
+                margin-left: -1.25rem;
+                margin-right: -1.25rem;
+            }
+        </style>
+
+
+    --> djackets_vue/src/views/Home.vue
+        <template>
+            ...
+            <div class="columns is-multiline">
+                <div class="column is-12">
+                    <h2 class="is-size-2 has-text-centered">Latest products</h2>
+                </div>
+
+                <ProductBox v-for="product in latestProducts" :key="product.id" :product="product" />     
+            </div>
+        </template>
+        <script>
+            ...
+            import ProductBox from '@/components/ProductBox'
+            ...
+            components: {
+                ProductBox
+            },
+            ...
+        </script>
+
+        ** remove <style>
+    
+    --> djackets_vue/src/views/Category.vue
+        <template>
+            ...
+            <div class="columns is-mutliline">
+                <ProductBox v-for="product in category.products" :key="product.id" :product="product"/>
+            </div>
+            ...
+        </template>
+        <script>
+            ...
+            import ProductBox from '@/components/ProductBox'
+            ...
+            components: {
+                ProductBox
+            },
+            ...
+            watch: {
+                $route(to, from) {
+                    if (to.name === 'Category') {
+                        this.getCategory()
+                    }
+                }
+            },
+        </script>
 
 - Add search functionality ==================== PENDING ===========================
 
@@ -603,6 +1063,11 @@ export default {
 - Change contents of cart ==================== PENDING ===========================
     - Increment / Decrement content
     - Remove from cart
+
+- Make it possible to sign up ==================== PENDING ===========================
+- Make it possible to log in ==================== PENDING ===========================
+- Create a simple my account system ==================== PENDING ===========================
+
 - Proceed to Checkout (Authentification) ==================== PENDING ===========================
 - Create a simple succes page ==================== PENDING ===========================
 
