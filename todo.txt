@@ -1056,20 +1056,306 @@ export default {
             },
         </script>
 
-- Add search functionality ==================== PENDING ===========================
+- Add search functionality ==================== DONE ===========================
+
+    --> djackets_django/product/views.py
+        from django.db.models import Q
+        ...
+        from rest_framework.decorators import api_view
+        ...
+        @api_view(['POST'])
+        def search(request):
+            query = request.data.get('query', '')
+
+            if query:
+                products = Product.objects.filter(Q(name__icontains=query) | Q(description__icontains=query))
+                serializer = ProductSerializer(products, many=True)
+                return Response({"products": []})
+    
+    --> djackets_django/product/urls.py
+        ...
+        urlpaterns = [
+            path('latest-products/', views.LatestProductsList.as_view()),
+            path('products/search/', views.search),
+            ...
+        ]
+    
+    --> djackets_vue/src/App.vue
+        ...
+        <div class="navbar-menu" id="navbar-menu" v-bind:class="{ 'is-active' : showMobileMenu }">
+
+        div.navbar-start>
+            div.navbar-item>
+                form:get(action="/search")>
+                    div.field.has-addons>
+                        (div.control>input.input(placeholder="What are you looking for?" name="query"))+
+                        (div.control>button.button.is-success>span.icon>i.fas.fa-search)
+
+        <div class="navbar-end">
+        ...
+    
+    --> djackets_vue/src/views/Search.vue (NEW FILE)
+        <template>
+            <div class="page-search">
+                <div class="columns is-multiline">
+                    <div class="column is-12">
+                        <h1 class="title">Search</h1>
+                        <h2 class="is-size-5 has-text-grey">Search term: "{{ query }}"</h2>
+                    </div>
+
+                    <ProductBox 
+                        v-for="product in products"
+                        v-bind:key="product.id"
+                        v-bind:product="product" />
+                </div>
+            </div>
+        </template>
+
+        <script>
+        import axios from 'axios'
+        import ProductBox from '@/components/ProductBox.vue'
+
+        export default {
+            name: 'Search',
+            components: {
+                ProductBox
+            },
+            data() {
+                return {
+                    products: [],
+                    query: ''
+                }
+            },
+            mounted() {
+                document.title = 'Search | Djackets'
+
+                let uri = window.location.search.substring(1)
+                let params = new URLSearchParams(uri)
+
+                if (params.get('query')) {
+                    this.query = params.get('query')
+
+                    this.performSearch()
+                }
+            },
+            methods: {
+                async performSearch(){
+                    this.$store.commit('setIsLoading', true)
+
+                    await axios
+                        .post('/api/v1/products/search/', {'query': this.query})
+                        .then(response => {
+                            this.products = response.data
+                        })
+                        .catch(error => {
+                            console.log(error)
+                        })
+                        
+                    this.$store.commit('setIsLoading', false)
+                }
+            }
+        }
+        </script>
+    
+    --> djackets_vue/src/router/index.js
+        ...
+        import Search from '../views/Search.vue'
+        ...
+        {
+            path: '/search',
+            name: 'Search',
+            component: Search
+        },
 
 - View Cart ==================== PENDING ===========================
     - A cart item should be a component
-- Change contents of cart ==================== PENDING ===========================
+
+     --> djackets_vue/src/router/index.js
+        ...
+        import Cart from '../views/Cart.vue'
+        ...
+        {
+            path: '/cart',
+            name: 'Cart',
+            component: Cart
+        },
+
+
+    --> djackets_vue/src/views/Cart.vue (NEW FILE)
+        <template>
+            <div class="page-cart">
+                <div class="columns is-multiline">
+                    <div class="column is-12">
+                        <h1 class="title">Cart</h1>
+                    </div>
+
+                    <div class="column is-12 box">
+                        <table class="table is-fullwidth" v-if="cartTotalLength">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Price</th>
+                                    <th>Quantity</th>
+                                    <th>Total</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <CartItem 
+                                    v-for="item in cart.items"
+                                    :key="item.product.id"
+                                    :initialItem="item"/>
+                            </tbody>
+                        </table>
+
+                        <p v-else>You don't have any products in your cart...</p>
+                    </div>
+
+                    <div class="column is-12 box">
+                        <h2 class="subtitle">Summary</h2>
+                        <strong>${{  cartTotalPrice.toFixed(2) }}</strong>, {{ cartTotalLength }} items
+                        <hr>
+                        <router-link to="/cart/checkout" class="button is-dark">Proceed to checkout</router-link>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <script>
+        import axios from 'axios'
+        import CartItem from '@/components/CartItem.vue'
+
+        export default {
+            name: 'Cart',
+            components: {
+                CartItem
+            },
+            data(){
+                return {
+                    cart: {
+                        items: []
+                    }
+                }
+            },
+            mounted() {
+                this.cart = this.$store.state.cart
+            },
+            computed: {
+                cartTotalLength() {
+                    return this.cart.items.reduce((acc, curVal) => {
+                        return acc += curVal.quantity
+                    }, 0)
+                },
+                cartTotalPrice() {
+                    return this.cart.items.reduce((acc, curVal) => {
+                        return acc += curVal.product.price * curVal.quantity
+                    }, 0)
+                },
+            }
+        }
+        </script>
+
+
+    --> djackets_vue/src/components/CartItem.vue (NEW FILE)
+        <template>
+            <tr>
+                <td>
+                    <router-link :to="item.product.get_absolute_url">{{ item.product.name }}</router-link>
+                </td>
+                <td>${{ item.product.price }}</td>
+                <td>
+                    {{ item.quantity }}
+                    </td>
+                <td>${{ getItemTotal(item).toFixed(2) }}</td>
+                <td><button class="delete"></button></td>
+            </tr>
+        </template>
+
+        <script>
+        export default {
+            name: 'CartItem',
+            props: {
+                initialItem: Object
+            },
+            data(){
+                return {
+                    item: this.initialItem
+                }
+            },
+            methods: {
+                getItemTotal(item) {
+                    return item.quantity * item.product.price
+                }
+            }
+        }
+        </script>
+
+- Change contents of cart ==================== DONE ===========================
     - Increment / Decrement content
     - Remove from cart
+
+        --> djackets_vue/src/views/Cart.vue
+            ...
+            <tbody>
+                <CartItem 
+                v-for="item in cart.items"
+                :key="item.product.id"
+                :initialItem="item"
+                v-on:removeFromCart="removeFromCart" />
+            </tbody>
+            ...
+            mounted() {...},
+            methods: {
+                removeFromCart(item){
+                    this.cart.items = this.cart.items.filter(i => i.product.id !== item.product.id)
+                }
+            },
+            computed: {
+            ...
+
+        --> djackets_vue/src/components/CartItem.vue
+            ...
+            <td>
+                {{ item.quantity }}
+                <a @click="decrementQuantity(item)">-</a>
+                <a @click="incrementQuantity(item)">+</a>
+            </td>
+            <td>${{ getItemTotal(item).toFixed(2) }}</td>
+            <td><button class="delete" @click="removeFromCart(item)"></button></td>
+            ...
+            methods: {
+                ...
+                decrementQuantity(item){
+                    item.quantity -= 1
+
+                    if(item.quantity === 0) {
+                        this.$emit('removeFromCart', item)
+                    }
+
+                    this.updateCart()
+                },
+                incrementQuantity(item){
+                    item.quantity += 1
+
+                    this.updateCart()
+                },
+                updateCart() {
+                    localStorage.setItem('cart', JSON.stringify(this.$store.state.cart))
+                },
+                removeFromCart(item) {
+                    this.$emit('removeFromCart', item)
+
+                    this.updateCart()
+                }
+            }
+            ...
 
 - Make it possible to sign up ==================== PENDING ===========================
 - Make it possible to log in ==================== PENDING ===========================
 - Create a simple my account system ==================== PENDING ===========================
 
 - Proceed to Checkout (Authentification) ==================== PENDING ===========================
-- Create a simple succes page ==================== PENDING ===========================
+- Create a simple success page ==================== PENDING ===========================
 
 - Show my orders on the my account page ==================== PENDING ===========================
     - An order should be a component
