@@ -1924,6 +1924,318 @@ export default {
 
 - Create a simple success page ==================== PENDING ===========================
 
+    --> djackets_vue/src/views/Success.vue (NEW FILE)
+        <template>
+            <div class="page-success">
+                <div class="columns is-multiline">
+                    <div class="column is-12">
+                        <h1 class="title">Thank You!</h1>
+
+                        <p>Your order will be processed within 48 hours</p>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <script>
+        export default {
+            name: 'Success',
+            mounted() {
+                document.title = 'Success | Djackets'
+            },
+        }
+        </script>
+
+
+    --> djackets_vue/src/router/index.js
+        ...
+        import Success from '../views/Success.vue'
+        ...
+        {
+            path: '/cart/success',
+            name: 'Success',
+            component: Success
+        },
+        ...
+
+    -----> go to stripe.com and get API Key ***
+
+    --> djackets_django/djackets_django/settings.py
+        ...
+        ALLOWED_HOSTS = []
+
+        STRIPE_SECRET_KEY = ***(APIKey de Stripe)
+        ...
+    
+    ----- >### Python terminal
+        Ctrl+c (stop server)
+        ##python manage.py startapp order
+
+    --> djackets_django/djackets_django/settings.py
+        ...
+        INSTALLED_APPS = [
+            ...
+            'products',
+            'order'
+        ]
+        ...
+    
+    --> djackets_django/order/models.py
+        from django.contrib.auth.models import User
+        from django.db import models
+
+        from product.models import Product
+
+        class Order(models.Model):
+            user = models.ForeignKey(User, related_name='orders', on_delete=models.CASCADE)
+            first_name = models.CharField(max_length=100)
+            last_name = models.CharField(max_length=100)
+            email = models.CharField(max_length=100)
+            address = models.CharField(max_length=100)
+            zipcode = models.CharField(max_length=100)
+            place = models.CharField(max_length=100)
+            phone = models.CharField(max_length=100)
+            created_at = models.DateTimeField(auto_now_add=True)
+            paid_amount = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
+            stripe_token = models.CharField(max_length=100)
+
+            class Meta:
+                ordering = ['-created_at',]
+            
+            def __str__(self):
+                return self.first_name
+
+        class OrderItem(models.Model):
+            order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
+            product = models.ForeignKey(Product, related_name='items', on_delete=models.CASCADE)
+            price = models.DecimalField(max_digits=8, decimal_places=2)
+            quantitiy = models.IntegerField(default=1)
+
+            def __str__(self):
+                return '%s' % self.id
+
+    ----- >### Python terminal
+        ## python manage.py makemigrations
+        ## python manage.py migrate
+        ## python manage.py runserver
+    
+    --> djackets_django/order/views.py
+
+        import rest_framework
+        import stripe
+
+        from django.conf import settings
+        from django.contrib.auth.models import User
+        from django.http import Http404
+        from django.shortcuts import render
+
+        from rest_framework import status, authentication, permissions
+        from rest_framework.decorators import api_view, authentication_classes, permission_classes
+        from rest_framework.views import APIView
+        from rest_framework.response import Response
+
+        from .models import Order, OrderItem
+        from .serializers import OrderSerializer
+
+        @api_view(['POST'])
+        @authentication_classes([authentication.TokenAuthentication])
+        @permission_classes([permissions.IsAuthenticated])
+        def checkout(request):
+            serializer = OrderSerializer(data=request.data)
+
+            if serializer.is_valid():
+                stripe.api_key = settings.STRIPE_SECRET_KEY
+                paid_amount = sum(item.get('quantity') * item.get('product').price for item in serializer.validated_data['items'])
+
+                try:
+                    charge = stripe.Charge.create(
+                        amount=int(paid_amount * 100),
+                        currency='USD',
+                        description='Charge from Djackets',
+                        source=serializer.validated_data['stripe_token']
+                    )
+
+                    serializer.save(user=request.user, paid_amount=paid_amount)
+
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                except Exception:
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    --> djackets_django/order/urls.py (NEW FILE)
+
+        from django.urls import path
+
+        from order import views
+
+        urlpatterns = [
+            path('/checkout', views.checkout)
+        ]
+    
+    --> djackets_django/djackets_django/urls.py
+        ...
+        urlpatterns = [
+            ...
+            path('api/v1/', include('order.urls')),
+        ]
+        ...
+
+
+    --> djackets_django/order/serializers.py (NEW FILE)
+
+        from django.db.models import fields
+        from rest_framework import serializers
+
+        from .models import Order, OrderItem
+
+        from product.serializers import ProductSerializer
+
+        class OrderItemSerializer(serializers.ModelSerializer):
+            class Meta:
+                model = OrderItem
+                fields = (
+                    "price",
+                    "product",
+                    "quantity",
+                )
+
+        class OrderSerializer(serializers.ModelSerializer):
+            items = OrderItemSerializer(many=True)
+
+            class Meta:
+                model = Order
+                fields = (
+                    "id",
+                    "first_name",
+                    "last_name",
+                    "email",
+                    "address",
+                    "zipcode",
+                    "place",
+                    "phone",
+                    "stripe_token",
+                    "items",
+                )
+            
+            def create(self, validated_data):
+                items_data = validated_data.pop('items')
+                order = Order.objects.create(**validated_data)
+
+                for item_data in items_data:
+                    OrderItem.objects.create(order=order, **item_data)
+
+                return order
+    
+
+    --> djackets_vue/src/views/Checkout.vue
+        ...
+        mounted() {
+            document.title = 'Checkout | Djackets'
+
+            this.cart = this.$store.state.cart
+
+            if(this.cartTotalLength > 0) {
+                this.stripe = Stripe('pk_test_51JfqaRHZCDkzuPVRlMzGPeADcgzkOIMAj7e48ozVFsqK1jdX14xp6Nspshx6ed86wZ4sTsIruUkrz6x8iOvYlq1k00lbU7H4q8')
+                const elements = this.stripe.elements()
+                this.card = elements.create('card', { hidePostalCode: true })
+
+                this.card.mount('#card-element')
+            }
+        },
+        ...
+        methods: {
+            ...
+            submitForm() {
+                ...
+               if (!this.errors.length) {
+                this.$stroe.commit('setIsLoading', true)
+
+                this.stripe.createdToken(this.card).then(result => {
+                    if (result.error) {
+                        this.$store.commit('setIsLoading', false)
+
+                        this.errors.push('Something went wrong with Stripe. Please try again')
+
+                        console.log(result.error.message)
+                    } else {
+                        this.stripeTokenHandler(result.token)
+                    }
+                })
+            }
+            async stripeTokenHandler(token){
+                const items = []
+
+                for (let i = 0; i < this.cart.items.length; i++) {
+                    const item = this.cart.items[i];
+                    const obj = {
+                        product: item.product.id,
+                        quantity: item.quantity,
+                        price: item.product.price * item.quantity
+                    }
+
+                    items.push(obj)
+                }
+
+                const data = {
+                    'first_name': this.first_name,
+                    'last_name': this.last_name,
+                    'email': this.email,
+                    'address': this.address,
+                    'zipcode': this.zipcode,
+                    'place': this.place,
+                    'phone': this.phone,
+                    'items': this.items,
+                    'stripe_token': token.id
+                }
+
+                await axios
+                    .post('/api/v1/checkout', data)
+                    .then(response => {
+                        this.$store.commit('clearCart')
+                        this.$router.push('/cart/success')
+                    })
+                    .catch(error => {
+                        this.errors.push('Something went wrong. Please try again')
+
+                        console.log(error)
+                    })
+
+                this.$store.commit('setIsLoading', false)
+            }
+        },
+        ...
+
+    --> djackets_vue/public/index.html
+        ...
+                <script src="https://js.stripe.com/v3"></script>
+        </head>    
+        ... 
+
+
+    --> djackets_vue/src/store/index.js
+         mutations: {   
+            ...
+            clearCart(state) {
+            state.cart = { items: [] }
+
+            localStorage.setItem('cart', JSON.stringify(state.cart))
+            }
+         }
+    
+
+    --> djackets_django/order/admin.py
+        from django.contrib import admin
+
+        from .models import Order, OrderItem
+
+        admin.site.register(Order)
+
+
+
+    ---> Place order with card (4242 4242 4242 4242 - 04/24 - 123)
+    ---> Go to 127.0.0.1:8000/admin/order/order  and check order made
+
 - Show my orders on the my account page ==================== PENDING ===========================
     - An order should be a component
 
