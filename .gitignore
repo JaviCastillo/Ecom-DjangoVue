@@ -1,7 +1,7 @@
 .DS_Store
 djackets_vue/node_modules
 djackets_vue/dist
-djackets_django/djackets_django
+djackets_django/djackets_django/settings.py
 
 
 # local env files
