@@ -1958,7 +1958,7 @@ export default {
         },
         ...
 
-    -----> go to stripe.com and get API Key ***
+    -----> go to stripe.com and get API Key *** ---> https://dashboard.stripe.com/apikeys
 
     --> djackets_django/djackets_django/settings.py
         ...
@@ -2070,7 +2070,7 @@ export default {
         from order import views
 
         urlpatterns = [
-            path('/checkout', views.checkout)
+            path('checkout/', views.checkout)
         ]
     
     --> djackets_django/djackets_django/urls.py
