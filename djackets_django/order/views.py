@@ -1,4 +1,5 @@
 import rest_framework
+from rest_framework import serializers
 import stripe
 
 from django.conf import settings
@@ -12,7 +13,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from .models import Order, OrderItem
-from .serializers import OrderSerializer
+from .serializers import OrderSerializer, MyOrderSerializer
 
 @api_view(['POST'])
 @authentication_classes([authentication.TokenAuthentication])
@@ -40,3 +41,12 @@ def checkout(request):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class OrdersList(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, format=None):
+        orders = Order.objects.filter(user=request.user)
+        serializer = MyOrderSerializer(orders, many=True)
+        return Response(serializer.data)
