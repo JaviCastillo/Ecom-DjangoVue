@@ -11,7 +11,7 @@
                       <tr>
                           <th>Product</th>
                           <th>Price</th>
-                          <th>Quaintity</th>
+                          <th>Quantity</th>
                           <th>Total</th>
                       </tr>
                   </thead>
@@ -219,7 +219,7 @@ export default {
                 'zipcode': this.zipcode,
                 'place': this.place,
                 'phone': this.phone,
-                'items': this.items,
+                'items': items,
                 'stripe_token': token.id
             }
 

@@ -1,7 +1,10 @@
 .DS_Store
 djackets_vue/node_modules
 djackets_vue/dist
+
+djackets_vue/package-lock.json
 djackets_django/djackets_django/settings.py
+djackets_django/djackets_django/__pycache__/settings.cpython-39.pyc
 
 
 # local env files
@@ -22,5 +25,4 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
-djackets_django/djackets_django/__pycache__/settings.cpython-39.pyc
-djackets_vue/package-lock.json
+*.json

@@ -1975,7 +1975,7 @@ export default {
         ...
         INSTALLED_APPS = [
             ...
-            'products',
+            'product',
             'order'
         ]
         ...
@@ -2009,7 +2009,7 @@ export default {
             order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
             product = models.ForeignKey(Product, related_name='items', on_delete=models.CASCADE)
             price = models.DecimalField(max_digits=8, decimal_places=2)
-            quantitiy = models.IntegerField(default=1)
+            quantity = models.IntegerField(default=1)
 
             def __str__(self):
                 return '%s' % self.id
@@ -2058,7 +2058,8 @@ export default {
                     serializer.save(user=request.user, paid_amount=paid_amount)
 
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
-                except Exception:
+                except Exception as e:
+                    print(e)
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -2136,7 +2137,7 @@ export default {
             this.cart = this.$store.state.cart
 
             if(this.cartTotalLength > 0) {
-                this.stripe = Stripe('pk_test_51JfqaRHZCDkzuPVRlMzGPeADcgzkOIMAj7e48ozVFsqK1jdX14xp6Nspshx6ed86wZ4sTsIruUkrz6x8iOvYlq1k00lbU7H4q8')
+                this.stripe = Stripe('***(APIKey publica de Stripe)')
                 const elements = this.stripe.elements()
                 this.card = elements.create('card', { hidePostalCode: true })
 
@@ -2185,7 +2186,7 @@ export default {
                     'zipcode': this.zipcode,
                     'place': this.place,
                     'phone': this.phone,
-                    'items': this.items,
+                    'items': items,
                     'stripe_token': token.id
                 }
 
@@ -2247,3 +2248,5 @@ export default {
     - Install packages and get project files
     - Create separate settingsfile for production
     - Set up Gunicorn
+    - Set up Supervisor
+    - Obtain SSI certificate

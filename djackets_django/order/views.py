@@ -35,7 +35,8 @@ def checkout(request):
             serializer.save(user=request.user, paid_amount=paid_amount)
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        except Exception:
+        except Exception as e:
+            print(e)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
